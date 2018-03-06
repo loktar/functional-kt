@@ -1,13 +1,17 @@
 package demo;
 
 class CreatesUserJava {
-    private final UserRepository userRepository;
+    private final UserRepositoryJava userRepository;
 
-    CreatesUserJava(UserRepository userRepository) {
+    CreatesUserJava(UserRepositoryJava userRepository) {
         this.userRepository = userRepository;
     }
 
-    public User createUser(NewUser newUser) {
+    public boolean execute(NewUser newUser) {
         return userRepository.create(newUser);
+    }
+
+    interface UserRepositoryJava {
+        boolean create(NewUser newUser);
     }
 }
