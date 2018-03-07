@@ -30,16 +30,20 @@ class CreatesUser(
         private val logger: Logger
 ) {
     fun execute(newUser: NewUser): Result<User, CreateUserFailure> {
-        return newUserValidator.validate(newUser)
-                .flatMap(this::userNotBanned)
-                .flatMap(userRepository::create)
+        return this.validateNewUser(newUser)
+                .flatMap(this::verifyUserNotBanned)
+                .flatMap(this::persistUser)
                 .tap(
                         onSuccess = this::logNewUserCreated,
                         onFailure = this::logNewUserFailure
                 )
     }
 
-    private fun userNotBanned(newUser: NewUser): Result<NewUser, CreateUserFailure> {
+    private fun validateNewUser(newUser: NewUser) = newUserValidator.validate(newUser)
+
+    private fun persistUser(newUser: NewUser) = userRepository.create(newUser)
+
+    private fun verifyUserNotBanned(newUser: NewUser): Result<NewUser, CreateUserFailure> {
         return when (userRepository.isNotBanned(newUser.email)) {
             true -> Result.Success(newUser)
             false -> Result.Failure(UserIsBanned(newUser.email))
