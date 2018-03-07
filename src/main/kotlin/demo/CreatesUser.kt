@@ -14,9 +14,9 @@ class UserController(private val createsUser: CreatesUser) {
 
     private fun failureResponse(failure: CreateUserFailure): Response {
         return when (failure) {
-            is UserAlreadyExists -> Response(400, "User already exists")
-            is InvalidEmail -> Response(400, "Invalid email: ${failure.email}")
-            is UserIsBanned -> Response(400, "User is banned: ${failure.email}")
+            is UserAlreadyExists -> Response(409, "User already exists")
+            is InvalidEmail -> Response(422, "Invalid email: ${failure.email}")
+            is UserIsBanned -> Response(422, "User is banned: ${failure.email}")
         }
     }
 }

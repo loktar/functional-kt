@@ -13,12 +13,10 @@ class UserControllerJava {
         try {
             final User user = createsUser.execute(new NewUser(email));
             return new Response(200, "created: " + user);
-        } catch (
-                CreatesUserJava.UserAlreadyExistsException |
-                        CreatesUserJava.InvalidEmailException |
-                        CreatesUserJava.UserBannedException e
-                ) {
-            return new Response(400, e.getMessage());
+        } catch (CreatesUserJava.UserAlreadyExistsException e) {
+            return new Response(409, e.getMessage());
+        } catch (CreatesUserJava.InvalidEmailException | CreatesUserJava.UserBannedException e) {
+            return new Response(422, e.getMessage());
         }
     }
 }
