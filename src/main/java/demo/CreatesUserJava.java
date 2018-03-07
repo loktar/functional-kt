@@ -11,7 +11,11 @@ class UserControllerJava {
         try {
             final User user = createsUser.execute(new NewUser(email));
             return new Response(200, "created: " + user);
-        } catch (CreatesUserJava.UserAlreadyExistsException | CreatesUserJava.InvalidEmailException e) {
+        } catch (
+                CreatesUserJava.UserAlreadyExistsException |
+                CreatesUserJava.InvalidEmailException |
+                CreatesUserJava.UserBannedException e
+        ) {
             return new Response(400, e.getMessage());
         }
     }
@@ -29,15 +33,20 @@ class CreatesUserJava {
         this.newUserValidator = newUserValidator;
     }
 
-    public User execute(NewUser newUser) throws InvalidEmailException, UserAlreadyExistsException {
+    public User execute(NewUser newUser) throws InvalidEmailException, UserAlreadyExistsException, UserBannedException {
         if (!newUserValidator.validate(newUser)) {
             throw new InvalidEmailException(newUser);
+        }
+        if (!userRepository.isNotBanned(newUser.getEmail())) {
+            throw new UserBannedException(newUser);
         }
         return userRepository.create(newUser);
     }
 
     interface UserRepositoryJava {
         User create(NewUser newUser) throws UserAlreadyExistsException;
+
+        boolean isNotBanned(String email);
     }
 
     interface NewUserValidatorJava {
@@ -51,6 +60,11 @@ class CreatesUserJava {
 
     public class InvalidEmailException extends Exception {
         public InvalidEmailException(NewUser newUser) {
+        }
+    }
+
+    public class UserBannedException extends Exception {
+        public UserBannedException(NewUser newUser) {
         }
     }
 }

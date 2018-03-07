@@ -1,7 +1,6 @@
 package demo
 
-import demo.CreateUserFailure.InvalidEmail
-import demo.CreateUserFailure.UserAlreadyExists
+import demo.CreateUserFailure.*
 
 class UserController(private val createsUser: CreatesUser) {
     fun create(email: String): Response {
@@ -13,9 +12,10 @@ class UserController(private val createsUser: CreatesUser) {
     }
 
     private fun failureResponse(failure: CreateUserFailure): Response {
-        return when(failure) {
+        return when (failure) {
             is UserAlreadyExists -> Response(400, "User already exists")
             is InvalidEmail -> Response(400, "Invalid email: ${failure.email}")
+            is UserIsBanned -> Response(400, "User is banned: ${failure.email}")
         }
     }
 }
@@ -29,14 +29,22 @@ class CreatesUser(
 ) {
     fun execute(newUser: NewUser): Result<User, CreateUserFailure> {
         return newUserValidator.validate(newUser)
+                .flatMap(this::userNotBanned)
                 .flatMap(userRepository::create)
+    }
+
+    private fun userNotBanned(newUser: NewUser): Result<NewUser, CreateUserFailure> {
+        return when (userRepository.isNotBanned(newUser.email)) {
+            true -> Result.Success(newUser)
+            false -> Result.Failure(UserIsBanned(newUser.email))
+        }
     }
 }
 
 
-
 interface UserRepository {
     fun create(newUser: NewUser): Result<User, CreateUserFailure>
+    fun isNotBanned(email: String): Boolean
 }
 
 interface NewUserValidator {
@@ -47,6 +55,7 @@ data class NewUser(val email: String)
 data class User(val id: Long, val email: String)
 
 sealed class CreateUserFailure(val email: String) {
-    class UserAlreadyExists(email: String): CreateUserFailure(email)
-    class InvalidEmail(email: String): CreateUserFailure(email)
+    class UserAlreadyExists(email: String) : CreateUserFailure(email)
+    class InvalidEmail(email: String) : CreateUserFailure(email)
+    class UserIsBanned(email: String) : CreateUserFailure(email)
 }
