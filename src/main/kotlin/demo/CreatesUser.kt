@@ -1,6 +1,7 @@
 package demo
 
 import demo.CreateUserFailure.*
+import java.util.logging.Logger
 
 class UserController(private val createsUser: CreatesUser) {
     fun create(email: String): Response {
@@ -25,12 +26,17 @@ data class Response(val statusCode: Int, val message: String)
 
 class CreatesUser(
         private val userRepository: UserRepository,
-        private val newUserValidator: NewUserValidator
+        private val newUserValidator: NewUserValidator,
+        private val logger: Logger
 ) {
     fun execute(newUser: NewUser): Result<User, CreateUserFailure> {
         return newUserValidator.validate(newUser)
                 .flatMap(this::userNotBanned)
                 .flatMap(userRepository::create)
+                .tap(
+                        onSuccess = this::logNewUserCreated,
+                        onFailure = this::logNewUserFailure
+                )
     }
 
     private fun userNotBanned(newUser: NewUser): Result<NewUser, CreateUserFailure> {
@@ -38,6 +44,14 @@ class CreatesUser(
             true -> Result.Success(newUser)
             false -> Result.Failure(UserIsBanned(newUser.email))
         }
+    }
+
+    private fun logNewUserCreated(user: User) {
+        logger.info("Created user <${user.id}> with email <${user.email}>")
+    }
+
+    private fun logNewUserFailure(failure: CreateUserFailure) {
+        logger.warning("Failed to create user with email <${failure.email}>: ${failure::class.simpleName}")
     }
 }
 

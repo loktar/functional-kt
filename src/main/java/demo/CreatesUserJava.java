@@ -1,5 +1,7 @@
 package demo;
 
+import java.util.logging.Logger;
+
 class UserControllerJava {
     private final CreatesUserJava createsUser;
 
@@ -13,9 +15,9 @@ class UserControllerJava {
             return new Response(200, "created: " + user);
         } catch (
                 CreatesUserJava.UserAlreadyExistsException |
-                CreatesUserJava.InvalidEmailException |
-                CreatesUserJava.UserBannedException e
-        ) {
+                        CreatesUserJava.InvalidEmailException |
+                        CreatesUserJava.UserBannedException e
+                ) {
             return new Response(400, e.getMessage());
         }
     }
@@ -24,13 +26,16 @@ class UserControllerJava {
 class CreatesUserJava {
     private final UserRepositoryJava userRepository;
     private final NewUserValidatorJava newUserValidator;
+    private final Logger logger;
 
     CreatesUserJava(
             UserRepositoryJava userRepository,
-            NewUserValidatorJava newUserValidator
+            NewUserValidatorJava newUserValidator,
+            Logger logger
     ) {
         this.userRepository = userRepository;
         this.newUserValidator = newUserValidator;
+        this.logger = logger;
     }
 
     public User execute(NewUser newUser) throws InvalidEmailException, UserAlreadyExistsException, UserBannedException {
@@ -40,7 +45,15 @@ class CreatesUserJava {
         if (!userRepository.isNotBanned(newUser.getEmail())) {
             throw new UserBannedException(newUser);
         }
-        return userRepository.create(newUser);
+
+        try {
+            final User createdUser = userRepository.create(newUser);
+            logger.info(String.format("Created user <%s> with email <%s>", createdUser.getId(), createdUser.getEmail()));
+            return createdUser;
+        } catch (UserAlreadyExistsException e) {
+            logger.warning(String.format("Failed to create user with email <%s>: %s", e.getNewUser().getEmail(), e.getClass().getSimpleName()));
+            throw e;
+        }
     }
 
     interface UserRepositoryJava {
@@ -54,7 +67,14 @@ class CreatesUserJava {
     }
 
     public class UserAlreadyExistsException extends Exception {
+        private final NewUser newUser;
+
         public UserAlreadyExistsException(NewUser newUser) {
+            this.newUser = newUser;
+        }
+
+        public NewUser getNewUser() {
+            return newUser;
         }
     }
 
